@@ -1,0 +1,409 @@
+---
+title: "Project 5-Cars Case Study"
+author: "Jake Tolentino"
+date: "7/3/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## 1. Project Description
+This project is to build a model which explains employees’ preference to Car as mode of transport to travel to
+their office. The data has employee information about their mode of transport as well as their personal and professional details like age, salary, work exp which would be analyzed to predict whether an employee will use Car as a mode of transport.
+
+Also, identify variables which are a significant predictor behind this decision. We would be analyze the dataset "Cars-dataset" and perform techniques like logistic regression, k-nearest neighbors (KNN), Naïve Bayes and apply boosting and bagging modelling procedures to create two models then compare accuracy to come up with best model for our prediction. 
+
+## 2. Data Understanding
+
+In this section of the report, we will load in the data, check for cleanliness, and then trim and clean the dataset for analysis.
+
+## Data Description
+
+* AGE	| Age of the employee
+* GENDER |	Gender of employee
+* ENGINEER |	Does employee have Engineering Degree. 1 indicates employee has engineering degree 0 indicates employee doesn’t
+* MBA	| Does employee have MBA Degree. 1 indicates employee has MBA degree 0 indicates employee doesn’t
+* WORK EXP |	Work experience in years
+* SALARY |	Annual Salary of employee (in thousand) 
+* DISTANCE |	Distance from office (in KM)
+* LICENSE |	Does employee have license
+* TRANSPORT |	Modes of transport chosen by employee
+
+### Access
+
+
+```{r}
+#Data Importing 
+setwd("~/Google Drive/Data Science/DSBA/Predictive Modeling/Project 5")
+library(readr)
+Cars <- read_csv("Cars-dataset.csv")
+```
+
+## 3. Exploratory Data Analysis
+```{r}
+#Exploratory Data Analysis
+View(Cars)
+str(Cars)
+summary(Cars)
+```
+
+### 3.1 Number of Rows and Columns
+* The number of rows in the dataset is 418
+* The number of columns (Features) in the dataset is 9
+* Target variable is “Transport”
+* Description of data set
+
+### 3.1.2 Preliminary Data Analysis
+Below are some of the actions which should be considered for data management prior t modelling.
+* Transport is a target variable as it will be used to predict whether an employee use car or other transport to get ti the office.
+* “Car” Transport data is comprises of 8.4% of the data, hence will be treated under imbalance data.
+* In order to predict whether employee will use Car as mode of transports, target variable data needs to be converted to dummy variable, Car or other mode of transport (1 or 0).
+* Gender consist of “Male” and “Female” so for better analysis will also be treated as dummy variable.(1 /0)
+* Null value or missing data exists in MBA column so it need to be treated or removed.
+* All the Flag fields need to be categorical so need to be converted from int to factor or numeric as needed
+depending on the requirement of specific algorithm to be used.
+* Outliers identified in the exploratory data analysis (EDA) will to be dealt with accordingly.
+
+## 4. Data Preparation
+```{r}
+#Convert to categorical variables
+Cars$Engineer = as.factor(Cars$Engineer) 
+Cars$MBA = as.factor(Cars$MBA) 
+Cars$license = as.factor(Cars$license)
+```
+
+
+```{r}
+#Rename Work Exp column
+colnames(Cars)[5] <- "Work_Exp"
+```
+
+
+```{r}
+#Check for missing values 
+sum(is.na(Cars))
+```
+
+
+```{r}
+#Remove Missing Values
+Cars<- na.omit(Cars)
+Cars <- as.data.frame(Cars)
+```
+
+
+```{r}
+#Convert Gender to binary
+Cars[Cars=="Female"]<- 1 
+Cars[Cars=="Male"]<- 0
+Cars$Gender <- as.numeric(Cars$Gender)
+```
+
+
+```{r}
+#Plotting the data –
+library(ggplot2) 
+hist(Cars$Age)
+```
+
+
+```{r}
+hist(as.numeric(Cars$Engineer))
+```
+
+
+```{r}
+hist(as.numeric(Cars$MBA))
+```
+
+```{r}
+hist(Cars$Work_Exp)
+```
+
+
+```{r}
+hist(Cars$Salary)
+```
+
+
+```{r}
+hist(Cars$Distance)
+```
+```{r}
+hist(as.numeric(Cars$license))
+```
+
+
+
+```{r}
+#Bivariate Analysis
+boxplot(Cars$Age ~Cars$Engineer, main = "Age vs Eng.") 
+boxplot(Cars$Age ~Cars$MBA, main ="Age Vs MBA")
+#People of all qualifications and all work experience would be employed in firm.
+```
+```{r}
+boxplot(Cars$Salary ~Cars$Engineer, main = "Salary vs Eng.")
+boxplot(Cars$Salary ~Cars$MBA, main = "Salary vs MBA.")
+#Not much difference in salary of Engs Vs Non-Engs or Mba vs Non-MBA’s Also, mean salary for both MBA’s and Eng is around 16
+```
+
+```{r}
+hist(Cars$Work_Exp, col = "cyan", main = "Distribution of work exp")
+#This is skewed towards right,there would be more juniors then seniors in any firm
+```
+
+```{r}
+table(Cars$license,Cars$Transport)
+```
+
+
+```{r}
+boxplot(Cars$Work_Exp ~ Cars$Gender)
+#Not much of difference between mean work experience in two genders, so population is equally distributed for both male and females.
+```
+Below are the observation and analysis points.
+*  Age : Outlier exist at both end but majorly at right side. Data is evenly skewed which is reflected in plot and graph both.
+*  Salary : Outlier exist at right end .Data is slightly left skewed which is reflected in plot and graph both. Grouping of data can be done based on Histogram.
+* Work Experience : Outlier exist at right end .Data is slightly right skewed which is reflected in plot and graph both. Grouping of data can be done based on Histogram
+* Distance and License have few outliers exist at right end
+
+```{r}
+#Convert Transport to Binary
+Cars[Cars=="2Wheeler"]<- 0 
+Cars[Cars=="Public Transport"]<- 0 
+Cars[Cars=="Car"]<- 1
+Cars$Transport <- as.numeric(Cars$Transport)
+```
+
+
+```{r}
+#To check for Multicollinearity
+plot(Cars)
+#Age is highly correlated to Work_Exp and Distance.
+#Work_Exp is highly correlated to Distance.
+#Work_Exp is also correlated to Salary and Age.
+```
+
+
+```{r}
+#Convert Engineer, MBA, license, and Gender to Binary
+Cars$Engineer <- as.numeric(Cars$Engineer) 
+Cars$MBA <- as.numeric(Cars$MBA) 
+Cars$license <- as.numeric(Cars$license)
+```
+
+
+```{r}
+library(usdm) 
+library(VIF) 
+vifcor(Cars[-9])
+```
+```{r}
+str(Cars)
+```
+
+
+
+```{r}
+#Remove Work_Exp due to multicollinearity
+Cars <- Cars[-5]
+names(Cars)
+```
+
+
+```{r}
+#Check for Outliers 
+boxplot(Cars$Age)
+boxplot(Cars$Salary)
+boxplot(Cars$Distance)
+```
+
+```{r}
+#Removing Outliers 
+quantile(Cars$Age, c(0.95)) 
+```
+
+```{r}
+Cars$Age[which(Cars$Age>37)]<- 37
+```
+
+```{r}
+quantile(Cars$Salary,c(0.95)) 
+```
+```{r}
+Cars$Salary[which(Cars$Salary>41.92)] <- 41.92
+```
+
+
+```{r}
+quantile(Cars$Distance,c(0.95)) 
+```
+
+```{r}
+Cars$Distance[which(Cars$Distance> 17.92)] <- 17.92
+```
+```{r}
+
+```
+
+
+```{r}
+#Check for data 
+table(Cars$Transport)
+```
+
+
+```{r}
+#Change Target Variable to factor 
+Cars$Transport <- as.factor(Cars$Transport)
+```
+
+SMOTE
+```{r}
+#SMOTE
+library(DMwR)
+library(caret)
+set.seed(42)
+Carsdata = SMOTE(Transport~., Cars)
+summary(Carsdata$Transport)
+```
+```{r}
+index=createDataPartition(y=Carsdata$Transport,p=0.7,list=FALSE)
+traindata=Carsdata[index,]
+table(traindata$Transport)
+```
+
+
+```{r}
+testdata=Carsdata[-index,]
+table(testdata$Transport)
+```
+
+## 5. Modeling
+
+Logistic Regression
+```{r}
+lgmodel <- glm(formula= Transport ~.,traindata, family=binomial)
+lgmodel
+```
+
+```{r}
+lg_predictions <- predict(lgmodel,testdata,type="response")
+```
+
+
+Naive Bayes 
+```{r}
+library(e1071)
+NBmodel <- naiveBayes(Transport ~., data=traindata)
+NBmodel
+```
+```{r}
+NB_predictions <- predict(NBmodel,testdata)
+table(NB_predictions,testdata$Transport)
+```
+
+Confusion Matrix
+```{r}
+confusionMatrix(NB_predictions,testdata$Transport)
+```
+
+KNN
+```{r}
+library(class)
+trControl <- trainControl(method  = "cv", number  = 10)
+KNNmod <- caret::train(Transport ~ .,
+                       method     = "knn",
+                       tuneGrid   = expand.grid(k = 2:20),
+                       trControl  = trControl,
+                       metric     = "Accuracy",
+                       preProcess = c("center","scale"),
+                       data       = traindata)
+KNNmod
+```
+```{r}
+KNN_predictions <- predict(KNNmod,testdata)
+confusionMatrix(KNN_predictions, testdata$Transport)
+```
+
+```{r}
+summary(testdata$Transport)
+```
+
+Bagging
+```{r}
+library(gbm)
+library(xgboost)
+library(caret)
+library(ipred)
+library(plyr)
+library(rpart)
+mod.bagging <- bagging(Transport ~.,
+                       data=traindata,
+                       control=rpart.control(maxdepth=5, minsplit=4))
+bag.pred <- predict(mod.bagging, testdata)
+confusionMatrix(bag.pred,testdata$Transport)
+```
+
+Boosting
+```{r}
+traindata$Transport<-as.numeric(levels(traindata$Transport))[traindata$Transport]
+```
+
+
+```{r}
+str(traindata)
+mod.boost <- gbm(Transport ~ .,data=traindata, distribution=
+                      "bernoulli",n.trees =5000 , interaction.depth =4, shrinkage=0.01)
+```
+
+```{r}
+summary(mod.boost)
+```
+```{r}
+boost.pred <- predict(mod.boost, testdata,n.trees =5000, type="response")
+y_pred_num <- ifelse(boost.pred > 0.5, 1, 0)
+y_pred <- factor(y_pred_num, levels=c(0, 1))
+table(y_pred,testdata$Transport)
+```
+
+```{r}
+confusionMatrix(y_pred,testdata$Transport)
+```
+
+Model Performance –
+```{r}
+library(ROCR)
+pred.lg <- prediction(lg_predictions, testdata$Transport)
+perf.lg <- performance(pred.lg, "tpr", "fpr")
+plot(perf.lg)
+
+```
+Kolmogorov Smirnov
+```{r}
+KS <- max(attr(perf.lg, 'y.values')[[1]]-attr(perf.lg, 'x.values')[[1]])
+KS
+```
+
+Area Under Curve 
+```{r}
+auc <- performance(pred.lg,"auc"); 
+auc <- as.numeric(auc@y.values)
+auc
+```
+
+Gini Coefficient 
+```{r}
+
+library(ineq)
+gini = ineq(lg_predictions, type="Gini")
+gini
+#
+```
+## 6. Model Comparison and Conclusion
+
+Logistics Regression Model, K-NN and Naïve Bayes Models are all able to predict the Transport mode with very high accuracy. However, using bagging and Boosting, we can predict the Choice of Transport Mode with 100% Accuracy.
+In this case, any of the models Logistics Regression, K-NN, Naïve Bayes or Bagging/Boosting can be used for high accuracy prediction. However, the key aspect is SMOTE for balancing the minority and majority class, without which our models will not be so accurate.
+
+
+
